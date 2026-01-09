@@ -8,7 +8,6 @@ from pathlib import Path
 from dotenv import load_dotenv
 import os
 import google.genai as genai
-from ai_features import HealthChatbot, VoiceAssistant
 
 # Load environment variables
 load_dotenv()
@@ -48,8 +47,6 @@ def load_model():
 model, scaler, feature_names, model_loaded = load_model()
 
 # Initialize AI Features
-chatbot = HealthChatbot()
-voice_assistant = VoiceAssistant()
 
 # Pydantic models for input/output
 class PatientData(BaseModel):
@@ -75,19 +72,7 @@ class PredictionResponse(BaseModel):
     recommendations: list[str]
 
 # AI Features Models
-class ChatRequest(BaseModel):
-    message: str
-    patient_context: dict = None
 
-class ChatResponse(BaseModel):
-    response: str
-
-class VoiceTextRequest(BaseModel):
-    text: str
-
-class VoiceResponse(BaseModel):
-    success: bool
-    message: str
 
 # Helper functions (copied from app.py)
 def preprocess_input(input_data):
@@ -288,50 +273,7 @@ def predict_heart_disease(data: PatientData):
 # AI Features Endpoints
 # ==========================================
 
-@app.post("/chat", response_model=ChatResponse)
-def chat_with_ai(data: ChatRequest):
-    """Chat with AI health assistant"""
-    try:
-        response = chatbot.chat(data.message, data.patient_context)
-        return ChatResponse(response=response)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
 
-@app.get("/chat/quick-answers/{topic}")
-def get_quick_answers(topic: str):
-    """Get quick answers for common health topics"""
-    try:
-        answer = chatbot.get_quick_answers(topic)
-        return {"topic": topic, "answer": answer}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Quick answer error: {str(e)}")
-
-@app.post("/voice/speak", response_model=VoiceResponse)
-def text_to_speech(data: VoiceTextRequest):
-    """Convert text to speech"""
-    try:
-        success = voice_assistant.speak(data.text)
-        return VoiceResponse(success=success, message="Speech played" if success else "TTS failed")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"TTS error: {str(e)}")
-
-@app.post("/voice/listen")
-def speech_to_text():
-    """Convert speech to text from microphone"""
-    try:
-        text = voice_assistant.listen_from_microphone()
-        return {"text": text}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"STT error: {str(e)}")
-
-@app.post("/voice/text-to-file")
-def text_to_audio_file(data: VoiceTextRequest):
-    """Convert text to audio file"""
-    try:
-        filename = voice_assistant.text_to_audio_file(data.text)
-        return {"filename": filename, "success": filename is not None}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Audio file error: {str(e)}")
 
 @app.post("/train-model")
 def train_new_model():

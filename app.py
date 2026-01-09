@@ -11,7 +11,6 @@ import plotly.express as px
 from pathlib import Path
 import os
 from dotenv import load_dotenv
-import requests
 
 # Load environment variables
 load_dotenv()
@@ -69,6 +68,11 @@ def load_model():
 model, scaler, feature_names, model_loaded = load_model()
 
 # ============================================
+# Load SHAP Explainer
+# ============================================
+
+
+# ============================================
 # Helper Functions
 # ============================================
 
@@ -99,11 +103,11 @@ def preprocess_input(input_data):
 def get_risk_level(probability):
     """Get risk level based on probability"""
     if probability < 0.3:
-        return "Low Risk", "🟢", "#28a745"
+        return "Low Risk", "🟢"
     elif probability < 0.6:
-        return "Medium Risk", "🟡", "#ffc107"
+        return "Medium Risk", "🟡"
     else:
-        return "High Risk", "🔴", "#dc3545"
+        return "High Risk", "🔴"
 
 def get_recommendations(probability, data):
     """Generate basic recommendations (fallback)"""
@@ -264,13 +268,14 @@ with st.sidebar:
         st.success("✅ Gemini AI Connected")
     else:
         st.warning("⚠️ Gemini Not Connected")
-    
+
+
     st.markdown("---")
     
     # Navigation
     page = st.radio(
         "Navigation",
-        ["🏠 Home", "🔮 Prediction", "🔄 Model Training", "📊 Dashboard", "📖 About"]
+        ["🏠 Home", "🔮 Prediction", "📊 Dashboard", "📖 About"]
     )
     
     st.markdown("---")
@@ -380,76 +385,70 @@ elif page == "🔮 Prediction":
 
         with st.spinner("🔄 Analyzing with AI..."):
             try:
-                # Call the backend API
-                api_data = {
-                    "age": age,
-                    "sex": sex_encoded,
-                    "chest_pain_type": chest_pain_encoded,
-                    "bp": bp,
-                    "cholesterol": cholesterol,
-                    "fbs_over_120": fbs_encoded,
-                    "ekg_results": ekg_encoded,
-                    "max_hr": max_hr,
-                    "exercise_angina": exercise_angina_encoded,
-                    "st_depression": st_depression,
-                    "slope_of_st": slope_encoded,
-                    "number_of_vessels_fluro": vessels,
-                    "thallium": thallium_encoded
+                input_data = {
+                    'Age': age,
+                    'Sex': sex_encoded,
+                    'Chest pain type': chest_pain_encoded,
+                    'BP': bp,
+                    'Cholesterol': cholesterol,
+                    'FBS over 120': fbs_encoded,
+                    'EKG results': ekg_encoded,
+                    'Max HR': max_hr,
+                    'Exercise angina': exercise_angina_encoded,
+                    'ST depression': st_depression,
+                    'Slope of ST': slope_encoded,
+                    'Number of vessels fluro': vessels,
+                    'Thallium': thallium_encoded
                 }
 
-                response = requests.post("http://localhost:8002/predict", json=api_data)
+                processed_data = preprocess_input(input_data)
 
-                if response.status_code == 200:
-                    result = response.json()
-                    prediction = result['prediction']
-                    probability = result['probability']
-                    risk_level = result['risk_level']
-                    emoji = result['risk_emoji']
-                    recommendations = result['recommendations']
+                prediction = model.predict(processed_data)[0]
+                probability = model.predict_proba(processed_data)[0][1]
+                risk_level, emoji = get_risk_level(probability)
+                recommendations = get_gemini_recommendations(probability, input_data)
+                # Results
+                st.markdown("---")
+                st.subheader("📊 Results")
 
-                    # Results
-                    st.markdown("---")
-                    st.subheader("📊 Results")
+                col1, col2 = st.columns(2)
 
-                    col1, col2 = st.columns(2)
+                with col1:
+                    result_text = "Heart Disease Detected" if prediction == 1 else "No Heart Disease"
 
-                    with col1:
-                        result_text = "Heart Disease Detected" if prediction == 1 else "No Heart Disease"
+                    st.markdown(f"""
+                    ### {emoji} {result_text}
 
-                        st.markdown(f"""
-                        ### {emoji} {result_text}
+                    **Risk Level:** {risk_level}
 
-                        **Risk Level:** {risk_level}
+                    **Probability:** {probability*100:.1f}%
 
-                        **Probability:** {probability*100:.1f}%
+                    **Confidence:** {max(probability, 1-probability)*100:.1f}%
+                    """)
 
-                        **Confidence:** {max(probability, 1-probability)*100:.1f}%
-                        """)
+                with col2:
+                    fig = create_gauge_chart(probability)
+                    st.plotly_chart(fig, width='stretch')
 
-                    with col2:
-                        fig = create_gauge_chart(probability)
-                        st.plotly_chart(fig, width='stretch')
+                # AI Recommendations Section
+                st.markdown("---")
+                st.subheader("🤖 AI-Powered Recommendations (Powered by Google Gemini)")
+                st.caption(f"Generated {len(recommendations)} personalized recommendations based on your health data")
 
-                    # AI Recommendations Section
-                    st.markdown("---")
-                    st.subheader("🤖 AI-Powered Recommendations (Powered by Google Gemini)")
-                    st.caption(f"Generated {len(recommendations)} personalized recommendations based on your health data")
+                # Display recommendations in a nice format
+                for i, rec in enumerate(recommendations, 1):
+                    st.info(f"**{i}.** {rec}")
 
-                    # Display recommendations in a nice format
-                    for i, rec in enumerate(recommendations, 1):
-                        st.info(f"**{i}.** {rec}")
 
-                    # Summary
-                    st.markdown("---")
-                    st.subheader("📋 Patient Summary")
-                    col1, col2, col3, col4 = st.columns(4)
-                    col1.metric("Age", f"{age} years")
-                    col2.metric("BP", f"{bp} mmHg", "High" if bp > 140 else "Normal")
-                    col3.metric("Cholesterol", f"{cholesterol} mg/dL", "High" if cholesterol > 200 else "Normal")
-                    col4.metric("Max HR", f"{max_hr} bpm")
+                # Summary
+                st.markdown("---")
+                st.subheader("📋 Patient Summary")
+                col1, col2, col3, col4 = st.columns(4)
+                col1.metric("Age", f"{age} years")
+                col2.metric("BP", f"{bp} mmHg", "High" if bp > 140 else "Normal")
+                col3.metric("Cholesterol", f"{cholesterol} mg/dL", "High" if cholesterol > 200 else "Normal")
+                col4.metric("Max HR", f"{max_hr} bpm")
 
-                else:
-                    st.error(f"❌ API Error: {response.status_code} - {response.text}")
 
             except Exception as e:
                 st.error(f"❌ Error during prediction: {e}")
@@ -460,58 +459,6 @@ elif page == "🔮 Prediction":
 # Model Training Page
 # ============================================
 
-elif page == "🔄 Model Training":
-    st.title("🔄 Model Training")
-    st.markdown("Retrain the heart disease prediction model with new data.")
-
-    st.warning("⚠️ **Note:** Model training may take several minutes. Ensure you have sufficient data and computational resources.")
-
-    st.markdown("---")
-
-    st.subheader("Current Model Status")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Model Type", "Random Forest")
-    with col2:
-        st.metric("Current Accuracy", "85%+")
-    with col3:
-        st.metric("Last Trained", "N/A")
-
-    st.markdown("---")
-
-    if st.button("🚀 Start Model Training", width='stretch', type="primary"):
-        with st.spinner("🔄 Training model... This may take several minutes."):
-            try:
-                response = requests.post("http://localhost:8002/train-model", timeout=300)  # 5 minute timeout
-
-                if response.status_code == 200:
-                    st.success("✅ Model training initiated successfully!")
-                    st.info("Training is running in the background. Check the server logs for progress updates.")
-                    st.balloons()
-                else:
-                    st.error(f"❌ Training failed: {response.status_code} - {response.text}")
-
-            except requests.exceptions.Timeout:
-                st.error("❌ Training timed out. The process may still be running on the server.")
-            except Exception as e:
-                st.error(f"❌ Error: {str(e)}")
-
-    st.markdown("---")
-    st.subheader("📋 Training Information")
-    st.markdown("""
-    **What happens during training:**
-    - The model is retrained using synthetic heart disease data
-    - Random Forest algorithm optimizes for heart disease prediction
-    - Model artifacts are updated (scaler, feature names, model weights)
-    - Previous model is backed up automatically
-
-    **Requirements:**
-    - Training generates synthetic data automatically
-    - Sufficient computational resources
-    - Internet connection for any external dependencies
-
-    **Expected Duration:** 1-2 minutes depending on hardware.
-    """)
 
 # ============================================
 # Dashboard Page
@@ -578,7 +525,6 @@ elif page == "📖 About":
     - **AI Recommendations:** Google Gemini 2.0 Flash
     - **Frontend:** Streamlit
     - **Backend:** FastAPI
-    - **Voice:** Speech Recognition & Text-to-Speech
     - **Visualizations:** Plotly
 
     ### Features Used for Prediction (17 total)
