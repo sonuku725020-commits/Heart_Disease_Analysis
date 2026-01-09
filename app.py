@@ -270,11 +270,11 @@ with st.sidebar:
     # Navigation
     page = st.radio(
         "Navigation",
-        ["🏠 Home", "🔮 Prediction", "📊 Dashboard", "📖 About"]
+        ["🏠 Home", "🔮 Prediction", "🔄 Model Training", "📊 Dashboard", "📖 About"]
     )
     
     st.markdown("---")
-    st.info("**Model:** XGBoost\n\n**Accuracy:** ~92%\n\n**AI:** Google Gemini 2.0")
+    st.info("**Model:** Random Forest\n\n**Accuracy:** ~85%\n\n**AI:** Google Gemini 2.0")
 
 # ============================================
 # Home Page
@@ -289,9 +289,9 @@ if page == "🏠 Home":
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.metric("Accuracy", "92%+")
+        st.metric("Accuracy", "85%+")
     with col2:
-        st.metric("Features", "13+")
+        st.metric("Features", "17")
     with col3:
         st.metric("Response", "Instant")
     with col4:
@@ -304,12 +304,12 @@ if page == "🏠 Home":
     1. **Enter Data** - Input patient health metrics
     2. **AI Analysis** - ML model processes data
     3. **Get Results** - Receive risk score and **5+ AI recommendations**
-    
+
     ### Features
     - 🤖 **Google Gemini 2.0 AI** for personalized recommendations
-    - 📊 **XGBoost ML Model** for accurate predictions
+    - 🌳 **Random Forest ML Model** for accurate predictions
     - 📈 **Interactive visualizations** for easy understanding
-    
+
     ### Get Started
     👈 Select **Prediction** from the sidebar to begin!
     """)
@@ -376,7 +376,7 @@ elif page == "🔮 Prediction":
     st.markdown("---")
     
     # Predict Button
-    if st.button("🔮 Predict Risk", use_container_width=True, type="primary"):
+    if st.button("🔮 Predict Risk", width='stretch', type="primary"):
 
         with st.spinner("🔄 Analyzing with AI..."):
             try:
@@ -397,7 +397,7 @@ elif page == "🔮 Prediction":
                     "thallium": thallium_encoded
                 }
 
-                response = requests.post("http://localhost:8000/predict", json=api_data)
+                response = requests.post("http://localhost:8002/predict", json=api_data)
 
                 if response.status_code == 200:
                     result = response.json()
@@ -428,7 +428,7 @@ elif page == "🔮 Prediction":
 
                     with col2:
                         fig = create_gauge_chart(probability)
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width='stretch')
 
                     # AI Recommendations Section
                     st.markdown("---")
@@ -457,6 +457,63 @@ elif page == "🔮 Prediction":
                 st.code(traceback.format_exc())
 
 # ============================================
+# Model Training Page
+# ============================================
+
+elif page == "🔄 Model Training":
+    st.title("🔄 Model Training")
+    st.markdown("Retrain the heart disease prediction model with new data.")
+
+    st.warning("⚠️ **Note:** Model training may take several minutes. Ensure you have sufficient data and computational resources.")
+
+    st.markdown("---")
+
+    st.subheader("Current Model Status")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Model Type", "Random Forest")
+    with col2:
+        st.metric("Current Accuracy", "85%+")
+    with col3:
+        st.metric("Last Trained", "N/A")
+
+    st.markdown("---")
+
+    if st.button("🚀 Start Model Training", width='stretch', type="primary"):
+        with st.spinner("🔄 Training model... This may take several minutes."):
+            try:
+                response = requests.post("http://localhost:8002/train-model", timeout=300)  # 5 minute timeout
+
+                if response.status_code == 200:
+                    st.success("✅ Model training initiated successfully!")
+                    st.info("Training is running in the background. Check the server logs for progress updates.")
+                    st.balloons()
+                else:
+                    st.error(f"❌ Training failed: {response.status_code} - {response.text}")
+
+            except requests.exceptions.Timeout:
+                st.error("❌ Training timed out. The process may still be running on the server.")
+            except Exception as e:
+                st.error(f"❌ Error: {str(e)}")
+
+    st.markdown("---")
+    st.subheader("📋 Training Information")
+    st.markdown("""
+    **What happens during training:**
+    - The model is retrained using synthetic heart disease data
+    - Random Forest algorithm optimizes for heart disease prediction
+    - Model artifacts are updated (scaler, feature names, model weights)
+    - Previous model is backed up automatically
+
+    **Requirements:**
+    - Training generates synthetic data automatically
+    - Sufficient computational resources
+    - Internet connection for any external dependencies
+
+    **Expected Duration:** 1-2 minutes depending on hardware.
+    """)
+
+# ============================================
 # Dashboard Page
 # ============================================
 
@@ -473,10 +530,10 @@ elif page == "📊 Dashboard":
             'Score': [0.92, 0.89, 0.94, 0.91, 0.95]
         })
         
-        fig = px.bar(metrics_df, x='Score', y='Metric', orientation='h', 
+        fig = px.bar(metrics_df, x='Score', y='Metric', orientation='h',
                      color='Score', color_continuous_scale='RdYlGn')
         fig.update_layout(height=400, showlegend=False)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
     
     with col2:
         st.subheader("Risk Distribution")
@@ -489,7 +546,7 @@ elif page == "📊 Dashboard":
         fig = px.pie(risk_df, values='Count', names='Risk Level',
                      color_discrete_sequence=['#28a745', '#ffc107', '#dc3545'])
         fig.update_layout(height=400)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
     
     # Feature Importance
     if model_loaded and hasattr(model, 'feature_importances_'):
@@ -502,7 +559,7 @@ elif page == "📊 Dashboard":
         
         fig = px.bar(importance_df, x='Feature', y='Importance', color='Importance')
         fig.update_layout(height=400, showlegend=False)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
 # ============================================
 # About Page
@@ -513,29 +570,35 @@ elif page == "📖 About":
     
     st.markdown("""
     ## Heart Disease Predictor
-    
+
     An AI-powered tool for predicting heart disease risk with **personalized recommendations**.
-    
+
     ### Technology Stack
-    - **ML Model:** XGBoost Classifier
+    - **ML Model:** Random Forest Classifier
     - **AI Recommendations:** Google Gemini 2.0 Flash
     - **Frontend:** Streamlit
+    - **Backend:** FastAPI
+    - **Voice:** Speech Recognition & Text-to-Speech
     - **Visualizations:** Plotly
-    
-    ### Features Used for Prediction
+
+    ### Features Used for Prediction (17 total)
+    **Original Features (13):**
     - Age, Sex, Chest Pain Type
     - Blood Pressure, Cholesterol
     - Fasting Blood Sugar, EKG Results
     - Max Heart Rate, Exercise Angina
     - ST Depression, Slope of ST
     - Number of Vessels, Thallium Test
-    
+
+    **Engineered Features (4):**
+    - Age Group, BP Category, Cholesterol Risk, HR Risk
+
     ### AI Recommendations
-    The system uses **Google Gemini 2.0 AI** to generate at least **5 personalized recommendations** 
+    The system uses **Google Gemini 2.0 AI** to generate **5 personalized recommendations**
     based on your specific health data and risk factors.
-    
+
     ### ⚠️ Disclaimer
-    This tool is for **educational purposes only**. 
+    This tool is for **educational purposes only**.
     Always consult a healthcare professional for medical advice.
     """)
 

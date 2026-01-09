@@ -11,3 +11,11 @@ python-dotenv
 fastapi
 uvicorn
 requests
+python-multipart
+speechrecognition==3.10.1
+pyttsx3==2.90
+gtts==2.5.0
+pypdf==4.0.1
+python-docx==1.1.0
+Pillow
+
