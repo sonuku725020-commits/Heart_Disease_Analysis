@@ -449,6 +449,46 @@ elif page == "🔮 Prediction":
                 col3.metric("Cholesterol", f"{cholesterol} mg/dL", "High" if cholesterol > 200 else "Normal")
                 col4.metric("Max HR", f"{max_hr} bpm")
 
+                # Download Report
+                st.markdown("---")
+                st.subheader("📄 Download Report")
+
+                report_text = f"""
+Heart Disease Prediction Report
+
+Patient Information:
+- Age: {age} years
+- Sex: {'Male' if sex_encoded == 1 else 'Female'}
+- Chest Pain Type: {chest_pain}
+- Blood Pressure: {bp} mmHg
+- Cholesterol: {cholesterol} mg/dL
+- Resting ECG: {ekg}
+- Max Heart Rate: {max_hr} bpm
+- Exercise Induced Angina: {'Yes' if exercise_angina_encoded == 1 else 'No'}
+- ST Depression: {st_depression}
+- ST Slope: {slope}
+- Number of Vessels: {vessels}
+- Thallium Test: {thallium}
+
+Prediction Results:
+- Risk Level: {risk_level}
+- Probability: {probability*100:.1f}%
+- Confidence: {max(probability, 1-probability)*100:.1f}%
+
+AI Recommendations:
+{chr(10).join(f"{i+1}. {rec}" for i, rec in enumerate(recommendations))}
+
+Report Generated on: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}
+"""
+
+                st.download_button(
+                    label="📥 Download Report",
+                    data=report_text,
+                    file_name=f"heart_disease_report_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                    mime="text/plain",
+                    width='stretch'
+                )
+
 
             except Exception as e:
                 st.error(f"❌ Error during prediction: {e}")
